@@ -1,3 +1,5 @@
+
+
 import socket
 import threading
 import tkinter as tk
@@ -115,7 +117,10 @@ class ChatClient:
                     break  # Server disconnected
 
                 message = data.decode().strip()
-
+                # Check for server shutdown message
+                if "[Server]: The server is shutting down." in message:
+                    messagebox.showinfo("Server Shutdown", "The server has been shut down. Please try reconnecting later.")
+                    break
                 # Check for special commands from server
                 if message.startswith("/userlist"):
                     # e.g. "/userlist ['Alice', 'Bob', 'Charlie']"

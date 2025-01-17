@@ -1,6 +1,9 @@
 # imports:
 # socket- for handling connections 
 # threading- for handling multiple clients librarys
+# json- for handling json files
+# signal- for handling signals
+# sys- for handling system functions
 
 import socket
 import threading
@@ -12,29 +15,33 @@ import sys
 HOST = '127.0.0.1'  
 PORT = 5000
 
-#dictionary for users  in the structure of {username: (conn, address)}
+# dictionary for users  in the structure of {username: (conn, address)}
 clients = {}
+# control the server socket from outside the start_server function
 server_socket = None
+# event to signal the server to shutdown
 shutdown_event = threading.Event()
 
-# File to store user messages
+# file to store user messages and recieve them from
 MESSAGES_FILE = "messages.json"
 
+# reads the messages from the JSON file
 def read_messages():
-    """Reads messages from the JSON file."""
     try:
+        # opens the file in read mode
         with open(MESSAGES_FILE, "r") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
+# writes the messages to the JSON file
 def write_messages(messages):
-    """Writes messages to the JSON file."""
+    # opens the file in write mode
     with open(MESSAGES_FILE, "w") as f:
         json.dump(messages, f, indent=4)
 
+# notifies all connected clients with a message aka: Server Broadcast
 def notify_clients(message):
-    """Sends a message to all connected clients."""
     for username, (conn, addr) in clients.items():
         try:
             conn.sendall(f"[Server]: {message}".encode())
@@ -54,7 +61,7 @@ def broadcast_user_list():
         except Exception as e:
             print(f"[!] Error sending user list to {username}: {e}")
 
-
+# handles the client connection
 def handle_client(conn, addr):
     username = None
     try:
@@ -72,14 +79,15 @@ def handle_client(conn, addr):
             print(f"[+] {username} connected from {addr}")
             broadcast_user_list()
 
-            # Send previous messages to the user
+            # read from history and send previous messages to the user
             messages = read_messages().get(username, [])
             for msg in messages:
                 conn.sendall(f"[History]: {msg}\n".encode())
         else:
             conn.close()
             return
-        
+
+        # waits for the client to send data while there is no SIGINT signal or server shutdown
         while not shutdown_event.is_set():
             data = conn.recv(1024)
             if not data:
@@ -91,16 +99,16 @@ def handle_client(conn, addr):
                 # expecting the format: "/msg <recipient_username> <message>"
                 # splits the actual message from the "/msg <recipient_username>" by the 2 spaces after each one
                 parts = message.split(" ", 2) 
-                if len(parts) < 3: #len= length
+                if len(parts) < 3: # len= length
                     continue
                 _, recipient, msg_body = parts
                 if recipient in clients:
-                    r_conn, r_addr = clients[recipient] #finds the recipent in the clients list and defines it's conn and addr parameters
+                    r_conn, r_addr = clients[recipient] # finds the recipent in the clients list and defines it's conn and addr parameters
                     try:
-                        #sends coded (into bits) message to the recipient containing the data mentioned below
+                        # sends coded (into bits) message to the recipient containing the data mentioned below
                         r_conn.sendall(f"[{username} -> {recipient}]: {msg_body}".encode())
 
-                        # Save message to history
+                        # write the message to the history with check if the recipient is in the messages list
                         messages = read_messages()
                         if recipient not in messages:
                             messages[recipient] = []
@@ -109,7 +117,7 @@ def handle_client(conn, addr):
                     except Exception as e:
                         print(f"[!] Error sending message to {recipient}: {e}")
                 else:
-                    # If recipient no longer online- the other user recives an error
+                    # username is not found in the clients list so not online and can't recieve the message
                     conn.sendall(f"[Server]: User '{recipient}' not found.".encode())
             else:
                 # Unrecognized command or message
@@ -138,8 +146,9 @@ def start_server():
 
         while not shutdown_event.is_set():
             try:
-                server_socket.settimeout(1)  # Check periodically for shutdown
-                conn, addr = server_socket.accept() #approves every new connection and saves the conn and addr parameters
+                # check if the server is alive
+                server_socket.settimeout(1)
+                conn, addr = server_socket.accept() # approves every new connection and saves the conn and addr parameters
                 # opens a new process (tied to the server) that runs the 'handle_client' function wuth the 'conn'& 'addr' arguments
                 client_thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
                 client_thread.start()
@@ -155,9 +164,11 @@ def start_server():
 
 def signal_handler(sig, frame):
     print("\n[Server] Shutting down...")
+    notify_clients("The server is shutting down. Please reconnect later.")
     shutdown_event.set()
     if server_socket:
         server_socket.close()
+    # close the server in a controlled way
     sys.exit(0)
 
 if __name__ == "__main__":
