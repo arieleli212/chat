@@ -1,3 +1,5 @@
+
+
 import socket
 import threading
 import tkinter as tk
@@ -115,7 +117,10 @@ class ChatClient:
                     break  # the server disconnected
                 #decodes the data and remove spaces from the start and end of the string
                 message = data.decode().strip()
-
+                # Check for server shutdown message
+                if message.startswith("/shutdown"):
+                    messagebox.showinfo("Server Shutdown", "The server has been shut down. Please try reconnecting later.")
+                    break
                 # Check for special commands from server
                 if message.startswith("/userlist"):
                     # e.g. "/userlist ['Alice', 'Bob', 'Charlie']"
