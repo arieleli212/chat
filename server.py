@@ -73,7 +73,7 @@ def handle_client(conn, addr):
     username = None
     try:
         # waits for the client to send the username 
-        # recv- recives tthe date in 1024 chuncks
+        # recv- recives tthe data in 1024 chuncks
         # decode- translates the bits to letters
         # strip- removes spaces in the beginning and at the end of the string
         initial_data = conn.recv(1024).decode().strip() 
