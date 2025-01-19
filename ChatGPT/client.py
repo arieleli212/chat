@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import simpledialog, messagebox
 from tkinter.scrolledtext import ScrolledText
 
-HOST = '127.0.0.1'
+HOST = '192.168.0.108'
 PORT = 5000
 
 class ChatClient:
@@ -78,26 +78,28 @@ class ChatClient:
         self.connect_to_server()
 
     def connect_to_server(self):
-        """
-        Prompt for a username and connect to the server.
-        """
+        # gets username from the user and connects to the server
+        # allowe user to enter a username
         self.username = simpledialog.askstring("Username", "Enter a username:", parent=self.master)
-        if not self.username:
+        if not self.username: # if username is empty- displays error and closes the connection
             messagebox.showerror("Error", "Username cannot be empty.")
             self.master.destroy()
             return
 
-        self.label_user.config(text=f"Connected as: {self.username}")
+        self.label_user.config(text=f"Connected as: {self.username}") #indicates that the user is connected
 
         try:
+            # Creates a new socket and connect to the server
+            # AF_INET- address family, SOCK_STREAM- the sockets uses a TCP connection
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((HOST, PORT))
-            # Register with the server
+            
+            # Registers with the server via username and notifys the server
             register_msg = f"/register {self.username}"
             self.socket.sendall(register_msg.encode())
         except Exception as e:
             messagebox.showerror("Connection Error", f"Could not connect to server: {e}")
-            self.master.destroy()
+            self.master.destroy() # ends the connection
             return
 
         # Start a background thread to listen for messages
@@ -105,15 +107,13 @@ class ChatClient:
         listen_thread.start()
 
     def listen_for_messages(self):
-        """
-        Continuously listen for incoming messages from the server.
-        """
+     # listens for messages from the server
         try:
             while True:
-                data = self.socket.recv(4096)
-                if not data:
-                    break  # Server disconnected
-
+                data = self.socket.recv(4096) # recives the data in 4096 chuncks
+                if not data: # if no data is recieved
+                    break  # the server disconnected
+                #decodes the data and remove spaces from the start and end of the string
                 message = data.decode().strip()
 
                 # Check for special commands from server
