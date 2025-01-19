@@ -118,7 +118,7 @@ class ChatClient:
 
                 message = data.decode().strip()
                 # Check for server shutdown message
-                if "[Server]: The server is shutting down." in message:
+                if message.startswith("/shutdown"):
                     messagebox.showinfo("Server Shutdown", "The server has been shut down. Please try reconnecting later.")
                     break
                 # Check for special commands from server

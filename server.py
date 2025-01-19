@@ -47,6 +47,13 @@ def notify_clients(message):
             conn.sendall(f"[Server]: {message}".encode())
         except Exception as e:
             print(f"[!] Error notifying {username}: {e}")
+# notify the users about server shutdown
+def shutdown_control():
+    for username, (conn, addr) in clients.items():
+        try:
+            conn.sendall(f"/shutdown".encode())
+        except Exception as e:
+            print(f"[!] Error notifying {username}: {e}")
 
 # broadcasts the user list to the clients
 def broadcast_user_list():
@@ -100,6 +107,10 @@ def handle_client(conn, addr):
                 # splits the actual message from the "/msg <recipient_username>" by the 2 spaces after each one
                 parts = message.split(" ", 2) 
                 if len(parts) < 3: # len= length
+                    continue
+                if "/shutdown" in message:
+                    r_conn, r_addr = clients[username]
+                    r_conn.sendall(f"[SERVER]: Not Allowed Command".encode())
                     continue
                 _, recipient, msg_body = parts
                 if recipient in clients:
@@ -155,16 +166,16 @@ def start_server():
             except socket.timeout:
                 continue
     except Exception as e:
-        notify_clients("The server is shutting down due to an error.")
+        shutdown_control()
         print(f"[!] Server error: {e}")
     finally:
-        notify_clients("The server is shutting down due to an error.")
+        shutdown_control()
         server_socket.close()
         print("[Server] Shutdown complete.")
 
 def signal_handler(sig, frame):
     print("\n[Server] Shutting down...")
-    notify_clients("The server is shutting down. Please reconnect later.")
+    shutdown_control()
     shutdown_event.set()
     if server_socket:
         server_socket.close()
